@@ -1,0 +1,149 @@
+{#
+  _findings_section.html - Render findings list
+  Receives: all_findings (list), filter_severity (string, optional)
+#}
+
+{% if all_findings|length == 0 %}
+<div class="text-center py-12 text-slate-500 dark:text-slate-400">
+    <svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <h3 class="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No findings found</h3>
+    <p class="text-slate-600 dark:text-slate-400">This scan did not identify any security issues.</p>
+</div>
+{% else %}
+<div class="space-y-4">
+    {% for finding in all_findings %}
+    {# Skip findings that don't match the filter #}
+    {% if filter_severity and finding.severity != filter_severity and filter_severity != 'all' %}{% set _skip = true %}{% else %}{% set _skip = false %}{% endif %}
+    {% if not _skip %}
+    <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden" id="finding-{{ loop.index }}">
+        <!-- Finding Header - Always Visible -->
+        <div class="bg-slate-50 dark:bg-slate-800 px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+             onclick="toggleFinding({{ loop.index }})">
+            <div class="flex items-center space-x-3">
+                <!-- Severity Badge -->
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
+                    {% if finding.severity == 'critical' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% elif finding.severity == 'high' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300{% elif finding.severity == 'medium' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300{% elif finding.severity == 'low' %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                    {{ finding.severity }}
+                </span>
+                <!-- Status Badge -->
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
+                    {% if finding.status == 'confirmed' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% elif finding.status == 'potential' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300{% elif finding.status == 'requires_manual_verification' %}bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300{% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                    {{ finding.status.replace('_', ' ') }}
+                </span>
+                <!-- Title -->
+                <h3 class="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                    {{ finding.title }}
+                </h3>
+            </div>
+            <!-- Expand/Collapse Icon -->
+            <svg class="h-5 w-5 text-slate-500 dark:text-slate-400 transform transition-transform duration-200" 
+                 id="icon-{{ loop.index }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        
+        <!-- Finding Details - Collapsible -->
+        <div class="detail-panel px-4 py-3 border-t border-slate-200 dark:border-slate-700 hidden bg-white dark:bg-slate-900"
+             id="panel-{{ loop.index }}">
+            <!-- Metadata Row -->
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                <span class="font-medium">Category:</span> {{ finding.category }} |
+                <span class="font-medium">Module:</span> {{ finding.module_name }}
+            </div>
+            
+            {% if finding.affected_url %}
+            <div class="text-xs text-slate-600 dark:text-slate-300 mb-3">
+                <span class="font-medium">Affected URL:</span> 
+                <a href="{{ finding.affected_url }}" class="text-slate-700 dark:text-slate-200 hover:underline break-all" target="_blank">
+                    {{ finding.affected_url }}
+                </a>
+            </div>
+            {% endif %}
+            
+            {% if finding.evidence %}
+            <div class="mb-3">
+                <h4 class="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center">
+                    <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20 10 10 0 010-20z" />
+                    </svg>
+                    Evidence
+                </h4>
+                <pre class="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-xs font-mono text-slate-800 dark:text-slate-200 overflow-x-auto break-all" aria-label="Evidence">
+{{ finding.evidence | e }}
+                </pre>
+            </div>
+            {% endif %}
+            
+            {% if finding.impact %}
+            <div class="mb-3">
+                <h4 class="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center">
+                    <svg class="h-3 w-3 mr-1 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.73 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Impact
+                </h4>
+                <p class="text-xs text-slate-600 dark:text-slate-400">{{ finding.impact }}</p>
+            </div>
+            {% endif %}
+            
+            {% if finding.remediation %}
+            <div class="mb-3">
+                <h4 class="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center">
+                    <svg class="h-3 w-3 mr-1 text-green-500 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Remediation
+                </h4>
+                <p class="text-xs text-slate-600 dark:text-slate-400">{{ finding.remediation }}</p>
+            </div>
+            {% endif %}
+            
+            {% if finding.references %}
+            <div>
+                <h4 class="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center">
+                    <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10h6zm-6 4h6M4 4h.01s0 4 0 4c0 4 4 6 8 6.5V20L4 20V4z" />
+                    </svg>
+                    References
+                </h4>
+                <div class="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                    {% for ref in finding.references %}
+                    <a href="{{ ref }}" target="_blank" class="block hover:underline break-all" aria-label="Reference link">
+                        {{ ref }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+<script>
+// Expand/Collapse functionality for findings
+function toggleFinding(index) {
+    var panel = document.getElementById('panel-' + index);
+    var icon = document.getElementById('icon-' + index);
+    
+    if (panel && panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+    } else if (panel) {
+        panel.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+    }
+}
+
+// Initialize all panels as collapsed
+document.addEventListener('DOMContentLoaded', function() {
+    var panels = document.querySelectorAll('.detail-panel');
+    panels.forEach(function(panel) {
+        panel.classList.add('hidden');
+    });
+});
+</script>
+{% endif %}

@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  zerotrace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zerotrace-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/data/reports
+    environment:
+      - ZEROTRACE_LOG_LEVEL=${ZEROTRACE_LOG_LEVEL:-INFO}
+      - ZEROTRACE_LOG_FORMAT=${ZEROTRACE_LOG_FORMAT:-text}
+      - ZEROTRACE_DEBUG=${ZEROTRACE_DEBUG:-false}
+      - DATABASE_URL=postgresql://zerotrace:${POSTGRES_PASSWORD:-zerotrace_password}@postgres:5432/zerotrace
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: zerotrace-db
+    environment:
+      - POSTGRES_USER=zerotrace
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-zerotrace_password}
+      - POSTGRES_DB=zerotrace
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zerotrace -d zerotrace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

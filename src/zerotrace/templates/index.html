@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="text-center mb-12">
+    <h1 class="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+        Automated Web Application Security Assessment
+    </h1>
+    <p class="text-lg text-slate-600 dark:text-slate-400 mb-8">
+        Identify security vulnerabilities before they become problems
+    </p>
+    
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6 max-w-2xl mx-auto">
+        <div class="flex items-start">
+            <svg class="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8.9 16v-5h4v5H8.9zM8.9 9v-1h4v1H8.9z" fill="currentColor"/>
+                <path fill-rule="evenodd" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+                <p class="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                    ⚠️ Only scan systems you own or have explicit permission to test. Unauthorized scanning is illegal.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="new-scan" class="bg-white dark:bg-slate-900 rounded-lg shadow-md p-8 max-w-2xl mx-auto">
+        <h2 class="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-6">Start a New Scan</h2>
+        <form id="scan-form" class="space-y-6">
+            <div>
+                <label for="target_url" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Target URL
+                </label>
+                <input type="url" id="target_url" name="target_url" required 
+                       class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-slate-800 dark:text-slate-100"
+                       placeholder="http://localhost:8080 or https://your-site.com (authorized only)">
+            </div>
+            
+            <div>
+                <label for="profile" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Profile
+                </label>
+                <select id="profile" name="profile" 
+                        class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-slate-800 dark:text-slate-100">
+                    <option value="quick">Quick (Security headers, cookies)</option>
+                    <option value="standard">Standard (Quick + SSL/TLS)</option>
+                    <option value="deep">Deep (All modules)</option>
+                </select>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Quick: Basic checks. Standard: Includes SSL/TLS. Deep: All modules.</p>
+            </div>
+            
+            <button type="submit" 
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-md transition-colors">
+                Start Scan
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="recent-scans" class="bg-white dark:bg-slate-900 rounded-lg shadow-md">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Recent Scans</h2>
+    </div>
+    <div id="scans-list" class="p-6" hx-get="/api/v1/scans" hx-trigger="load" hx-swap="innerHTML">
+        <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+            Loading recent scans...
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('scan-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    submitBtn.textContent = 'Starting...';
+    submitBtn.disabled = true;
+    
+    try {
+        const formData = new FormData(form);
+        const response = await fetch('/api/v1/scans', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                target_url: formData.get('target_url'),
+                profile: formData.get('profile'),
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            window.location.href = `/scan/${data.scan_id}`;
+        } else {
+            alert('Failed to start scan');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+});
+</script>
+{% endblock %}
